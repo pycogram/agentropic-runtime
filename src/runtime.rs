@@ -92,7 +92,7 @@ impl Runtime {
         RuntimeHandle::new(self.agents.clone(), self.running.clone())
     }
 
-    /// Shutdown the runtime
+    /// Shutdown the run-time
     pub async fn shutdown(self) -> Result<(), RuntimeError> {
         self.stop().await?;
         let mut agents = self.agents.write().await;

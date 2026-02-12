@@ -12,7 +12,7 @@ pub mod metrics;
 pub mod runtime;
 pub mod scheduler;
 pub mod supervisor;
-pub mod tracing;
+pub mod tracing_agent;
 
 /// Prelude for convenient imports
 pub mod prelude;
@@ -22,3 +22,4 @@ pub use config::RuntimeConfig;
 pub use error::RuntimeError;
 pub use handle::RuntimeHandle;
 pub use runtime::Runtime;
+

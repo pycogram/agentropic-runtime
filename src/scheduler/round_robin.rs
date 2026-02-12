@@ -26,8 +26,8 @@ impl RoundRobinScheduler {
     }
 
     /// Advance to next
-    pub fn next(&mut self) {
-        self.current_index += 1;
+    pub fn next(&mut self, total: usize) {
+        self.current_index = (self.current_index + 1) % total;
     }
 
     /// Reset index

@@ -2,6 +2,7 @@ use std::time::Duration;
 
 /// Exponential backoff
 pub struct ExponentialBackoff {
+    initial_delay: Duration,
     current_delay: Duration,
     max_delay: Duration,
     multiplier: f64,
@@ -12,6 +13,7 @@ impl ExponentialBackoff {
     /// Create a new exponential backoff
     pub fn new(initial_delay: Duration, max_delay: Duration) -> Self {
         Self {
+            initial_delay,
             current_delay: initial_delay,
             max_delay,
             multiplier: 2.0,
@@ -31,7 +33,7 @@ impl ExponentialBackoff {
 
     /// Reset backoff
     pub fn reset(&mut self) {
-        self.current_delay = Duration::from_secs(1);
+        self.current_delay = self.initial_delay;
         self.retries = 0;
     }
 

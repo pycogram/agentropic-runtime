@@ -27,7 +27,7 @@ pub use crate::supervisor::{
 pub use crate::metrics::{Collector, Metric, MetricType, MetricsExporter, MetricsRegistry};
 
 // Tracing
-pub use crate::tracing::Tracer;
+pub use crate::tracing_agent::Tracer;
 
 // Error
 pub use crate::RuntimeError;

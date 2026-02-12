@@ -12,9 +12,9 @@ categories = ["simulation", "asynchronous"]
 readme = "README.md"
 
 [dependencies]
-agentropic-core = { git = "https://github.com/pycogram/agentropic-core", branch = "main" }
-agentropic-messaging = { git = "https://github.com/pycogram/agentropic-messaging", branch = "main" }
-agentropic-cognition = { git = "https://github.com/pycogram/agentropic-cognition", branch = "main" }
+agentropic-core = { git = "https://github.com/agentropic/agentropic-core", branch = "main" }
+agentropic-messaging = { git = "https://github.com/agentropic/agentropic-messaging", branch = "main" }
+agentropic-cognition = { git = "https://github.com/agentropic/agentropic-cognition", branch = "main" }
 
 async-trait = "0.1"
 tokio = { version = "1.0", features = ["full"] }

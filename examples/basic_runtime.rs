@@ -1,10 +1,52 @@
+use agentropic_core::{Agent, AgentContext, AgentId, AgentResult};
 use agentropic_runtime::prelude::*;
+use async_trait::async_trait;
+
+/// A simple agent that prints a message each time it executes
+struct PrintAgent {
+    id: AgentId,
+    name: String,
+    count: u32,
+}
+
+impl PrintAgent {
+    fn new(name: &str) -> Self {
+        Self {
+            id: AgentId::new(),
+            name: name.to_string(),
+            count: 0,
+        }
+    }
+}
+
+#[async_trait]
+impl Agent for PrintAgent {
+    fn id(&self) -> &AgentId {
+        &self.id
+    }
+
+    async fn initialize(&mut self, ctx: &AgentContext) -> AgentResult<()> {
+        ctx.log_info(&format!("{} ready!", self.name));
+        Ok(())
+    }
+
+    async fn execute(&mut self, ctx: &AgentContext) -> AgentResult<()> {
+        self.count += 1;
+        ctx.log_info(&format!("{} tick #{}", self.name, self.count));
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        Ok(())
+    }
+
+    async fn shutdown(&mut self, ctx: &AgentContext) -> AgentResult<()> {
+        ctx.log_info(&format!("{} done after {} ticks", self.name, self.count));
+        Ok(())
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<(), RuntimeError> {
     println!("=== Basic Runtime Example ===\n");
 
-    // Create runtime with configuration
     let config = RuntimeConfig::new()
         .with_max_workers(4)
         .with_metrics(true)
@@ -15,42 +57,31 @@ async fn main() -> Result<(), RuntimeError> {
     println!("Runtime created:");
     println!("  Max workers: {}", runtime.config().max_workers);
     println!("  Metrics enabled: {}", runtime.config().enable_metrics);
-    println!("  Timeout: {}ms", runtime.config().default_timeout_ms);
+    println!("  Timeout: {}ms\n", runtime.config().default_timeout_ms);
 
-    // Start runtime
-    runtime.start().await?;
-    println!("\n✓ Runtime started");
+    // Spawn real agents that actually run
+    let id1 = runtime.spawn(Box::new(PrintAgent::new("Trader")), "trader_agent").await?;
+    let id2 = runtime.spawn(Box::new(PrintAgent::new("Monitor")), "monitor_agent").await?;
+    let id3 = runtime.spawn(Box::new(PrintAgent::new("Logger")), "logger_agent").await?;
 
-    // Spawn some agents
-    let agent1 = AgentId::new();
-    let agent2 = AgentId::new();
-    let agent3 = AgentId::new();
+    println!("Spawned {} agents\n", runtime.agent_count().await);
 
-    runtime.spawn(agent1, "trader_agent").await?;
-    runtime.spawn(agent2, "monitor_agent").await?;
-    runtime.spawn(agent3, "logger_agent").await?;
+    // Let them run for 2 seconds
+    println!("--- Agents running for 2 seconds ---\n");
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
-    println!("\n✓ Spawned {} agents", runtime.agent_count().await);
-
-    // Get runtime handle
+    // Check via handle
     let handle = runtime.handle();
-    println!("\n✓ Runtime handle created");
-    println!("  Agents via handle: {}", handle.agent_count().await);
-    println!("  Runtime running: {}", handle.is_running().await);
+    println!("\nRuntime handle:");
+    println!("  Agent count: {}", handle.agent_count().await);
+    for (id, name) in handle.agent_names().await {
+        println!("  - {} ({})", name, id);
+    }
 
-    // Check agents
-    println!("\nAgent checks:");
-    println!("  agent1 exists: {}", runtime.has_agent(&agent1).await);
-    println!("  agent2 exists: {}", runtime.has_agent(&agent2).await);
-    println!("  agent3 exists: {}", runtime.has_agent(&agent3).await);
-
-    // Stop runtime
-    runtime.stop().await?;
-    println!("\n✓ Runtime stopped");
-
-    // Shutdown
+    // Shutdown all
+    println!("\n--- Shutting down ---\n");
     runtime.shutdown().await?;
-    println!("✓ Runtime shutdown complete");
+    println!("\nDone!");
 
     Ok(())
 }

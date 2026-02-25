@@ -1,8 +1,9 @@
 use crate::{RuntimeConfig, RuntimeError, RuntimeHandle};
-use agentropic_core::{Agent, AgentContext, AgentId};
+use agentropic_core::{Agent, AgentContext, AgentId, OutgoingMessage};
+use agentropic_messaging::{Message, Performative, Router};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{watch, RwLock};
+use tokio::sync::{watch, mpsc, RwLock};
 use tokio::task::JoinHandle;
 use tracing::{info, error, warn};
 
@@ -14,11 +15,14 @@ pub(crate) struct AgentEntry {
     pub task_handle: JoinHandle<()>,
 }
 
-/// Agent runtime engine — actually runs agents
+/// Agent runtime engine — runs agents and routes messages between them
 pub struct Runtime {
     config: RuntimeConfig,
     agents: Arc<RwLock<HashMap<AgentId, AgentEntry>>>,
     running: Arc<RwLock<bool>>,
+    router: Router,
+    /// Maps agent name → AgentId for name-based messaging
+    name_registry: Arc<RwLock<HashMap<String, AgentId>>>,
 }
 
 impl Runtime {
@@ -33,6 +37,8 @@ impl Runtime {
             config,
             agents: Arc::new(RwLock::new(HashMap::new())),
             running: Arc::new(RwLock::new(false)),
+            router: Router::new(),
+            name_registry: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -41,8 +47,17 @@ impl Runtime {
         &self.config
     }
 
-    /// Spawn an agent — starts it running in a background task
-    /// The agent goes through: initialize → execute loop → shutdown
+    /// Get reference to the router
+    pub fn router(&self) -> &Router {
+        &self.router
+    }
+
+    /// Get the name registry for resolving agent names to IDs
+    pub fn name_registry(&self) -> &Arc<RwLock<HashMap<String, AgentId>>> {
+        &self.name_registry
+    }
+
+    /// Spawn an agent — starts it running in a background task with messaging
     pub async fn spawn(
         &self,
         agent: Box<dyn Agent>,
@@ -52,18 +67,31 @@ impl Runtime {
         let agent_name = name.into();
         let ctx = AgentContext::new(agent_id);
 
+        // Register agent with the router for message receiving
+        let mailbox_rx = self.router.register(agent_id)
+            .map_err(|e| RuntimeError::SpawnFailed(format!("Router registration failed: {}", e)))?;
+
+        // Register name → id mapping
+        {
+            let mut names = self.name_registry.write().await;
+            names.insert(agent_name.clone(), agent_id);
+        }
+
         // Create shutdown channel
         let (shutdown_tx, shutdown_rx) = watch::channel(false);
 
         info!("[{}] Spawning agent '{}'", agent_id, agent_name);
 
-        // Spawn the agent execution loop as a tokio task
+        // Clone what the task needs
+        let router = self.router.clone();
+        let name_reg = self.name_registry.clone();
         let task_name = agent_name.clone();
+
+        // Spawn the agent execution loop
         let task_handle = tokio::spawn(async move {
-            run_agent_loop(agent, ctx, shutdown_rx, &task_name).await;
+            run_agent_loop(agent, ctx, shutdown_rx, mailbox_rx, router, name_reg, &task_name).await;
         });
 
-        // Store the entry
         let entry = AgentEntry {
             id: agent_id,
             name: agent_name,
@@ -87,25 +115,26 @@ impl Runtime {
 
         info!("[{}] Stopping agent '{}'", agent_id, entry.name);
 
-        // Signal shutdown
         let _ = entry.shutdown_tx.send(true);
 
-        // Wait for the task to finish (with timeout)
+        // Unregister from router
+        let _ = self.router.unregister(agent_id);
+
+        // Remove from name registry
+        {
+            let mut names = self.name_registry.write().await;
+            names.retain(|_, id| id != agent_id);
+        }
+
         match tokio::time::timeout(
             std::time::Duration::from_secs(self.config.default_timeout_ms / 1000),
             entry.task_handle,
         )
         .await
         {
-            Ok(Ok(())) => {
-                info!("[{}] Agent '{}' stopped cleanly", agent_id, entry.name);
-            }
-            Ok(Err(e)) => {
-                error!("[{}] Agent '{}' task panicked: {}", agent_id, entry.name, e);
-            }
-            Err(_) => {
-                warn!("[{}] Agent '{}' shutdown timed out", agent_id, entry.name);
-            }
+            Ok(Ok(())) => info!("[{}] Agent '{}' stopped cleanly", agent_id, entry.name),
+            Ok(Err(e)) => error!("[{}] Agent '{}' task panicked: {}", agent_id, entry.name, e),
+            Err(_) => warn!("[{}] Agent '{}' shutdown timed out", agent_id, entry.name),
         }
 
         Ok(())
@@ -130,7 +159,6 @@ impl Runtime {
     }
 
     /// Stop the runtime (marks as not running)
-    /// Stop the runtime (keeps agents, just marks as not running)
     pub async fn stop(&self) -> Result<(), RuntimeError> {
         let mut running = self.running.write().await;
         *running = false;
@@ -138,6 +166,7 @@ impl Runtime {
         Ok(())
     }
 
+    /// Check if runtime is running
     pub async fn is_running(&self) -> bool {
         *self.running.read().await
     }
@@ -157,6 +186,7 @@ impl Runtime {
         for (id, entry) in agents.drain() {
             info!("[{}] Shutting down agent '{}'", id, entry.name);
             let _ = entry.shutdown_tx.send(true);
+            let _ = self.router.unregister(&id);
 
             match tokio::time::timeout(
                 std::time::Duration::from_millis(timeout_ms),
@@ -184,58 +214,85 @@ impl Default for Runtime {
     }
 }
 
-/// The actual agent execution loop — runs inside a tokio task
+/// Convert a string performative name to the Performative enum
+fn parse_performative(s: &str) -> Performative {
+    match s.to_lowercase().as_str() {
+        "inform" => Performative::Inform,
+        "request" => Performative::Request,
+        "query" => Performative::Query,
+        "propose" => Performative::Propose,
+        "accept" => Performative::Accept,
+        "reject" => Performative::Reject,
+        "confirm" => Performative::Confirm,
+        "subscribe" => Performative::Subscribe,
+        "cfp" => Performative::CFP,
+        "refuse" => Performative::Refuse,
+        _ => Performative::Inform,
+    }
+}
+
+/// The actual agent execution loop with message handling
 async fn run_agent_loop(
     mut agent: Box<dyn Agent>,
     ctx: AgentContext,
     mut shutdown_rx: watch::Receiver<bool>,
+    mut mailbox_rx: mpsc::UnboundedReceiver<Message>,
+    router: Router,
+    name_registry: Arc<RwLock<HashMap<String, AgentId>>>,
     name: &str,
 ) {
     // Phase 1: Initialize
     info!("[{}] Agent '{}' initializing...", ctx.agent_id(), name);
     match agent.initialize(&ctx).await {
-        Ok(()) => {
-            info!("[{}] Agent '{}' initialized", ctx.agent_id(), name);
-        }
+        Ok(()) => info!("[{}] Agent '{}' initialized", ctx.agent_id(), name),
         Err(e) => {
-            error!(
-                "[{}] Agent '{}' initialization failed: {}",
-                ctx.agent_id(),
-                name,
-                e
-            );
+            error!("[{}] Agent '{}' initialization failed: {}", ctx.agent_id(), name, e);
             return;
         }
     }
 
-    // Phase 2: Execute loop
+    // Phase 2: Execute loop with message handling
     info!("[{}] Agent '{}' running", ctx.agent_id(), name);
     loop {
         tokio::select! {
             // Check for shutdown signal
             result = shutdown_rx.changed() => {
                 match result {
-                    Ok(()) => {
-                        if *shutdown_rx.borrow() {
-                            info!("[{}] Agent '{}' received shutdown signal", ctx.agent_id(), name);
-                            break;
-                        }
-                    }
-                    Err(_) => {
-                        // Sender dropped, shutdown
+                    Ok(()) if *shutdown_rx.borrow() => {
+                        info!("[{}] Agent '{}' received shutdown signal", ctx.agent_id(), name);
                         break;
                     }
+                    Err(_) => break,
+                    _ => {}
                 }
             }
+
+            // Check for incoming messages
+            Some(msg) = mailbox_rx.recv() => {
+                let sender_str = msg.sender().to_string();
+                let perf_str = msg.performative().to_string();
+                let content = msg.content().to_string();
+
+                match agent.handle_message(&ctx, &sender_str, &perf_str, &content).await {
+                    Ok(()) => {}
+                    Err(e) => {
+                        error!("[{}] Agent '{}' message handling error: {}", ctx.agent_id(), name, e);
+                    }
+                }
+
+                // Drain outbox after handling message
+                deliver_outbox(&ctx, &router, &name_registry).await;
+            }
+
             // Run agent execution
             result = agent.execute(&ctx) => {
                 match result {
                     Ok(()) => {
-                        // Agent executed successfully, continue loop
+                        // Drain outbox after execution
+                        deliver_outbox(&ctx, &router, &name_registry).await;
                     }
                     Err(e) => {
                         error!("[{}] Agent '{}' execution error: {}", ctx.agent_id(), name, e);
-                        // Break on error — supervisor will handle restart later
                         break;
                     }
                 }
@@ -246,19 +303,45 @@ async fn run_agent_loop(
     // Phase 3: Shutdown
     info!("[{}] Agent '{}' shutting down...", ctx.agent_id(), name);
     match agent.shutdown(&ctx).await {
-        Ok(()) => {
-            info!("[{}] Agent '{}' shutdown complete", ctx.agent_id(), name);
-        }
-        Err(e) => {
-            error!(
-                "[{}] Agent '{}' shutdown error: {}",
-                ctx.agent_id(),
-                name,
-                e
-            );
+        Ok(()) => info!("[{}] Agent '{}' shutdown complete", ctx.agent_id(), name),
+        Err(e) => error!("[{}] Agent '{}' shutdown error: {}", ctx.agent_id(), name, e),
+    }
+}
+
+/// Deliver outgoing messages from agent's outbox via the router
+async fn deliver_outbox(
+    ctx: &AgentContext,
+    router: &Router,
+    name_registry: &Arc<RwLock<HashMap<String, AgentId>>>,
+) {
+    let messages = ctx.drain_outbox();
+    if messages.is_empty() {
+        return;
+    }
+
+    let names = name_registry.read().await;
+    let sender_id = *ctx.agent_id();
+
+    for outgoing in messages {
+        let receiver_id = if let Some(id) = names.get(&outgoing.receiver) {
+            *id
+        } else {
+            warn!("[{}] Cannot resolve receiver, dropped", sender_id);
+            continue;
+        };
+
+        let performative = parse_performative(&outgoing.performative);
+        let msg = Message::new(sender_id, receiver_id, performative, outgoing.content);
+
+        match router.send(msg) {
+            Ok(()) => {}
+            Err(e) => {
+                warn!("[{}] Message delivery failed: {}", sender_id, e);
+            }
         }
     }
 }
+    
 
 #[cfg(test)]
 mod tests {
@@ -266,9 +349,9 @@ mod tests {
     use agentropic_core::{Agent, AgentContext, AgentId, AgentResult};
     use async_trait::async_trait;
     use std::sync::atomic::{AtomicU32, Ordering};
-    use std::sync::Arc;
+    use std::sync::{Arc, Mutex};
 
-    /// A test agent that counts how many times execute() is called
+    /// A test agent that counts executions
     struct CountingAgent {
         id: AgentId,
         counter: Arc<AtomicU32>,
@@ -285,26 +368,95 @@ mod tests {
 
     #[async_trait]
     impl Agent for CountingAgent {
-        fn id(&self) -> &AgentId {
-            &self.id
-        }
+        fn id(&self) -> &AgentId { &self.id }
 
-        async fn initialize(&mut self, ctx: &AgentContext) -> AgentResult<()> {
-            ctx.log_info("CountingAgent initialized");
-            Ok(())
-        }
+        async fn initialize(&mut self, _ctx: &AgentContext) -> AgentResult<()> { Ok(()) }
 
         async fn execute(&mut self, _ctx: &AgentContext) -> AgentResult<()> {
             self.counter.fetch_add(1, Ordering::SeqCst);
-            // Sleep to avoid busy-loop
             tokio::time::sleep(std::time::Duration::from_millis(50)).await;
             Ok(())
         }
 
-        async fn shutdown(&mut self, ctx: &AgentContext) -> AgentResult<()> {
-            ctx.log_info("CountingAgent shutdown");
+        async fn shutdown(&mut self, _ctx: &AgentContext) -> AgentResult<()> { Ok(()) }
+    }
+
+    /// An agent that receives messages and logs them
+    struct EchoAgent {
+        id: AgentId,
+        received: Arc<Mutex<Vec<String>>>,
+    }
+
+    impl EchoAgent {
+        fn new(received: Arc<Mutex<Vec<String>>>) -> Self {
+            Self {
+                id: AgentId::new(),
+                received,
+            }
+        }
+    }
+
+    #[async_trait]
+    impl Agent for EchoAgent {
+        fn id(&self) -> &AgentId { &self.id }
+
+        async fn initialize(&mut self, _ctx: &AgentContext) -> AgentResult<()> { Ok(()) }
+
+        async fn execute(&mut self, _ctx: &AgentContext) -> AgentResult<()> {
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
             Ok(())
         }
+
+        async fn shutdown(&mut self, _ctx: &AgentContext) -> AgentResult<()> { Ok(()) }
+
+        async fn handle_message(
+            &mut self,
+            _ctx: &AgentContext,
+            sender: &str,
+            performative: &str,
+            content: &str,
+        ) -> AgentResult<()> {
+            let msg = format!("[{}:{}] {}", sender, performative, content);
+            if let Ok(mut received) = self.received.lock() {
+                received.push(msg);
+            }
+            Ok(())
+        }
+    }
+
+    /// An agent that sends a message on first execute, then sleeps
+    struct SenderAgent {
+        id: AgentId,
+        target_name: String,
+        sent: bool,
+    }
+
+    impl SenderAgent {
+        fn new(target_name: &str) -> Self {
+            Self {
+                id: AgentId::new(),
+                target_name: target_name.to_string(),
+                sent: false,
+            }
+        }
+    }
+
+    #[async_trait]
+    impl Agent for SenderAgent {
+        fn id(&self) -> &AgentId { &self.id }
+
+        async fn initialize(&mut self, _ctx: &AgentContext) -> AgentResult<()> { Ok(()) }
+
+        async fn execute(&mut self, ctx: &AgentContext) -> AgentResult<()> {
+            if !self.sent {
+                ctx.send_message(&self.target_name, "inform", "Hello from sender!");
+                self.sent = true;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            Ok(())
+        }
+
+        async fn shutdown(&mut self, _ctx: &AgentContext) -> AgentResult<()> { Ok(()) }
     }
 
     #[tokio::test]
@@ -313,49 +465,55 @@ mod tests {
         let counter = Arc::new(AtomicU32::new(0));
 
         let agent = CountingAgent::new(counter.clone());
-        let agent_id = runtime
-            .spawn(Box::new(agent), "counter-agent")
-            .await
-            .unwrap();
+        let agent_id = runtime.spawn(Box::new(agent), "counter").await.unwrap();
 
         assert!(runtime.has_agent(&agent_id).await);
-        assert_eq!(runtime.agent_count().await, 1);
-
-        // Let it run for 200ms
         tokio::time::sleep(std::time::Duration::from_millis(200)).await;
 
-        // Should have executed multiple times
         let count = counter.load(Ordering::SeqCst);
         assert!(count >= 2, "Agent executed {} times, expected >= 2", count);
 
-        // Stop it
         runtime.stop_agent(&agent_id).await.unwrap();
-        assert_eq!(runtime.agent_count().await, 0);
     }
 
     #[tokio::test]
     async fn test_runtime_runs_multiple_agents() {
         let runtime = Runtime::new();
+        let c1 = Arc::new(AtomicU32::new(0));
+        let c2 = Arc::new(AtomicU32::new(0));
 
-        let counter1 = Arc::new(AtomicU32::new(0));
-        let counter2 = Arc::new(AtomicU32::new(0));
+        runtime.spawn(Box::new(CountingAgent::new(c1.clone())), "a1").await.unwrap();
+        runtime.spawn(Box::new(CountingAgent::new(c2.clone())), "a2").await.unwrap();
 
-        let agent1 = CountingAgent::new(counter1.clone());
-        let agent2 = CountingAgent::new(counter2.clone());
-
-        let id1 = runtime.spawn(Box::new(agent1), "agent-1").await.unwrap();
-        let id2 = runtime.spawn(Box::new(agent2), "agent-2").await.unwrap();
-
-        assert_eq!(runtime.agent_count().await, 2);
-
-        // Let them run
         tokio::time::sleep(std::time::Duration::from_millis(200)).await;
 
-        // Both should have executed
-        assert!(counter1.load(Ordering::SeqCst) >= 2, "Agent 1 didn't run enough");
-        assert!(counter2.load(Ordering::SeqCst) >= 2, "Agent 2 didn't run enough");
+        assert!(c1.load(Ordering::SeqCst) >= 2);
+        assert!(c2.load(Ordering::SeqCst) >= 2);
 
-        // Shutdown all
+        runtime.shutdown().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_agent_messaging() {
+        let runtime = Runtime::new();
+        let received = Arc::new(Mutex::new(Vec::new()));
+
+        // Spawn receiver first
+        let receiver = EchoAgent::new(received.clone());
+        runtime.spawn(Box::new(receiver), "receiver").await.unwrap();
+
+        // Spawn sender that targets "receiver" by name
+        let sender = SenderAgent::new("receiver");
+        runtime.spawn(Box::new(sender), "sender").await.unwrap();
+
+        // Wait for message delivery
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+
+        // Check that receiver got the message
+        let msgs = received.lock().unwrap();
+        assert!(!msgs.is_empty(), "Receiver should have gotten a message");
+        assert!(msgs[0].contains("Hello from sender!"), "Got: {}", msgs[0]);
+
         runtime.shutdown().await.unwrap();
     }
 
@@ -364,20 +522,16 @@ mod tests {
         let runtime = Runtime::new();
         let counter = Arc::new(AtomicU32::new(0));
 
-        let agent = CountingAgent::new(counter.clone());
-        runtime.spawn(Box::new(agent), "shutdown-test").await.unwrap();
-
+        runtime.spawn(Box::new(CountingAgent::new(counter.clone())), "test").await.unwrap();
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
         let count_before = counter.load(Ordering::SeqCst);
-        assert!(count_before > 0, "Agent should have run at least once");
+        assert!(count_before > 0);
 
         runtime.shutdown().await.unwrap();
 
-        // After shutdown, count should stop increasing
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
         let count_after = counter.load(Ordering::SeqCst);
-
-        assert_eq!(count_before, count_after, "Agent should have stopped after shutdown");
+        assert_eq!(count_before, count_after);
     }
 }

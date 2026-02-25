@@ -44,7 +44,7 @@ fn round_robin_scheduler() {
     let mut scheduler = RoundRobinScheduler::default();
 
     assert_eq!(scheduler.current_index(), 0);
-    scheduler.next();
+    scheduler.next(3);
     assert_eq!(scheduler.current_index(), 1);
     scheduler.reset();
     assert_eq!(scheduler.current_index(), 0);

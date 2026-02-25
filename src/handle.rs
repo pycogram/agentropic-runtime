@@ -34,4 +34,14 @@ impl RuntimeHandle {
     pub async fn has_agent(&self, agent_id: &AgentId) -> bool {
         self.agents.read().await.contains_key(agent_id)
     }
+
+    /// Get names of all running agents
+    pub async fn agent_names(&self) -> Vec<(AgentId, String)> {
+        self.agents
+            .read()
+            .await
+            .values()
+            .map(|entry| (entry.id, entry.name.clone()))
+            .collect()
+    }
 }

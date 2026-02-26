@@ -1,0 +1,9 @@
+{
+  "llm_provider": "ollama",
+  "llm_model": "phi3:mini",
+  "ollama_url": "http://localhost:11434/api/generate",
+  "claude_url": "https://api.anthropic.com/v1/messages",
+  "api_key": "",
+  "confidence_threshold": 0.35,
+  "save_new_beliefs": true
+}

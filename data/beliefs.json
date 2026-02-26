@@ -1,0 +1,149 @@
+{
+  "beliefs": [
+    {
+      "key": "what_is_agentropic",
+      "value": "Agentropic is a modular multi-agent framework built in Rust. It provides agent lifecycle, messaging, cognition, patterns, and a supervised runtime.",
+      "certainty": 1.0
+    },
+    {
+      "key": "crates",
+      "value": "Agentropic has 5 crates: core (Agent trait, lifecycle), messaging (Router, FIPA performatives), cognition (BDI, reasoning, planning), patterns (8 organizational patterns), and runtime (supervisor, scheduler).",
+      "certainty": 1.0
+    },
+    {
+      "key": "patterns",
+      "value": "Agentropic supports 8 patterns: Hierarchy, Swarm, Coalition, Market, Federation, Team, Holarchy, and Blackboard.",
+      "certainty": 1.0
+    },
+    {
+      "key": "messaging",
+      "value": "Agents communicate via a Router using FIPA performatives: Inform, Request, Query, Propose, Accept, Reject, Confirm, Subscribe, CFP, Refuse. Messages are delivered by agent name.",
+      "certainty": 1.0
+    },
+    {
+      "key": "bdi",
+      "value": "BDI stands for Beliefs, Desires, Intentions. Agents maintain a BeliefBase of knowledge, use ReasoningEngine to match rules against input, and UtilityFunction to score decisions.",
+      "certainty": 1.0
+    },
+    {
+      "key": "runtime",
+      "value": "The runtime spawns agents as async tokio tasks, manages their lifecycle (initialize, execute loop, shutdown), routes messages between them, and supervises them with restart policies: Never, Always, OnFailure, ExponentialBackoff.",
+      "certainty": 1.0
+    },
+    {
+      "key": "rust",
+      "value": "Agentropic is built in Rust for type safety, zero-cost abstractions, fearless concurrency, and no garbage collector. Agents run as lightweight tokio tasks using minimal memory.",
+      "certainty": 1.0
+    },
+    {
+      "key": "swarm",
+      "value": "Swarm pattern enables decentralized coordination. Agents follow flocking, foraging, and consensus behaviors without central control. Inspired by biological swarm intelligence.",
+      "certainty": 1.0
+    },
+    {
+      "key": "market",
+      "value": "Market pattern allocates resources through auctions: English (ascending), Dutch (descending), Vickrey (sealed second-price), and sealed-bid. Agents compete as buyers and sellers.",
+      "certainty": 1.0
+    },
+    {
+      "key": "hierarchy",
+      "value": "Hierarchy pattern organizes agents in command chains with strategic, tactical, and operational levels. Orders flow down, reports flow up.",
+      "certainty": 1.0
+    },
+    {
+      "key": "coalition",
+      "value": "Coalition pattern lets agents form temporary alliances to tackle tasks none could handle alone. Agents join, collaborate, and disband when done.",
+      "certainty": 1.0
+    },
+    {
+      "key": "federation",
+      "value": "Federation pattern provides governance through weighted voting and policy thresholds. Agents participate in collective decision-making.",
+      "certainty": 1.0
+    },
+    {
+      "key": "team",
+      "value": "Team pattern enables role-based coordination with leaders, coordinators, and executors. Each agent has a defined role and responsibility.",
+      "certainty": 1.0
+    },
+    {
+      "key": "holarchy",
+      "value": "Holarchy pattern creates nested autonomous units called holons. Each holon is both a whole and a part — self-contained yet part of a larger system.",
+      "certainty": 1.0
+    },
+    {
+      "key": "blackboard",
+      "value": "Blackboard pattern provides a shared knowledge space where agents read and write collaboratively. Agents contribute partial solutions that others build upon.",
+      "certainty": 1.0
+    },
+    {
+      "key": "getting_started",
+      "value": "To start: add agentropic-core to Cargo.toml, implement the Agent trait (initialize, execute, shutdown), then spawn with Runtime::new().spawn(Box::new(agent), name).await.",
+      "certainty": 1.0
+    },
+    {
+      "key": "agent_trait",
+      "value": "The Agent trait is the core abstraction. Every agent implements four methods: id() returns its unique ID, initialize() sets up state, execute() runs the main logic in a loop, and shutdown() cleans up.",
+      "certainty": 1.0
+    },
+    {
+      "key": "handle_message",
+      "value": "Agents can override handle_message to receive messages from other agents. The runtime delivers messages through the Router while the agent is running. Messages include sender, performative type, and content.",
+      "certainty": 1.0
+    },
+    {
+      "key": "supervisor",
+      "value": "The Supervisor monitors agents and restarts them on failure. Four restart strategies: Never (let it die), Always (restart no matter what), OnFailure (restart only on errors), ExponentialBackoff (restart with increasing delays).",
+      "certainty": 1.0
+    },
+    {
+      "key": "agent_context",
+      "value": "AgentContext is passed to every agent method. It provides the agent's ID, logging via log_info/log_error, and messaging via send_message(receiver_name, performative, content).",
+      "certainty": 1.0
+    },
+    {
+      "key": "performatives",
+      "value": "FIPA performatives define message intent: Inform (share facts), Request (ask for action), Query (ask for info), Propose (suggest), Accept/Reject (respond to proposals), CFP (call for proposals), Confirm (acknowledge), Subscribe (register interest), Refuse (decline).",
+      "certainty": 1.0
+    },
+    {
+      "key": "xbot",
+      "value": "Agentropic xbot is the first real application built on the framework. It's a Twitter/X bot that posts scheduled tweets using the Agent trait, with a knowledge base and reasoning engine for generating responses.",
+      "certainty": 1.0
+    },
+    {
+      "key": "cognition_crate",
+      "value": "The cognition crate provides BDI architecture: BeliefBase stores knowledge as key-value pairs, ReasoningEngine matches rules against facts with confidence scoring, UtilityFunction evaluates decisions, and Planner creates action sequences.",
+      "certainty": 1.0
+    },
+    {
+      "key": "open_source",
+      "value": "Agentropic is open source under MIT and Apache-2.0 dual license. All code is on GitHub at github.com/agentropic.",
+      "certainty": 1.0
+    },
+    {
+      "key": "vision",
+      "value": "Agentropic's vision is three layers: agent-oriented programming (the framework), agentic app development (tools and SDK for developers), and agentic app deployment (infrastructure to run agents in production).",
+      "certainty": 1.0
+    },
+    {
+      "key": "llm:how_does_agentropic_compare_to_other_agent_framewo",
+      "value": "Agentropic stands out due to its focus on scalability and high performance, achieved through the use of Rust's memory safety guarantees. Compared to other agent frameworks, it offers efficient communication between agents and supports large-scale simulations with complex environments. However, it may have a steeper learning curve due to its use of Rust.",
+      "certainty": 0.8
+    },
+    {
+      "key": "llm:can_i_use_agentropic_for_robotics?",
+      "value": "Yes, Agentropic can be used for robotics applications as it allows for the development of intelligent agents that can interact with each other and their environment, which is applicable to robotic systems. However, you may need additional libraries or integrations to handle specific robotics-related tasks such as sensor data processing or motor control.",
+      "certainty": 0.8
+    },
+    {
+      "key": "llm:what_is_the_difference_between_an_agent_and_a_micr",
+      "value": "An agent in Agentropic refers to an autonomous entity capable of perceiving its environment and acting upon it to achieve goals, while a microservice is a loosely coupled service within an application that performs a specific function. Though both are independent entities, they differ in their purpose, design, and context – agents operate within the framework for AI and multi-agent systems, while microservices are part of larger software applications.",
+      "certainty": 0.8
+    },
+    {
+      "key": "llm:can_agentropic_agents_collaborate_with_external_ap",
+      "value": "Agentropic itself does not directly facilitate interactions with external APIs, as it is designed for agent communication and coordination within the framework's own multi-agent systems using FIPA performatives. For integrating with external services or APIs, additional libraries or middleware would be required to handle such tasks.",
+      "certainty": 0.8
+    }
+  ]
+}

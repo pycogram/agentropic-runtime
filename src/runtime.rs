@@ -78,6 +78,8 @@ impl Runtime {
         {
             let mut names = self.name_registry.write().await;
             names.insert(agent_name.clone(), agent_id);
+            // Also register UUID string so agents can reply by sender ID
+            names.insert(agent_id.to_string(), agent_id);
         }
 
         let (shutdown_tx, shutdown_rx) = watch::channel(false);

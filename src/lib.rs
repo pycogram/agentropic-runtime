@@ -13,6 +13,7 @@ pub mod runtime;
 pub mod scheduler;
 pub mod supervisor;
 pub mod tracing_agent;
+pub mod cognitive;
 
 /// Prelude for convenient imports
 pub mod prelude;
@@ -22,4 +23,5 @@ pub use config::RuntimeConfig;
 pub use error::RuntimeError;
 pub use handle::RuntimeHandle;
 pub use runtime::Runtime;
+pub use cognitive::{CognitiveAgent, LlmConfig};
 

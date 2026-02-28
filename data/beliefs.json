@@ -144,6 +144,61 @@
       "key": "llm:can_agentropic_agents_collaborate_with_external_ap",
       "value": "Agentropic itself does not directly facilitate interactions with external APIs, as it is designed for agent communication and coordination within the framework's own multi-agent systems using FIPA performatives. For integrating with external services or APIs, additional libraries or middleware would be required to handle such tasks.",
       "certainty": 0.8
+    },
+    {
+      "key": "llm:can_i_build_an_agent_with_agentropic_?",
+      "value": "Yes, you can create agents using Agentropic by implementing the `Agent` trait and spawning them within its runtime system. Ensure to handle initialization, execution, and shutdown properly for a functional agent in Agentropic's environment.",
+      "certainty": 0.8
+    },
+    {
+      "key": "layman",
+      "value": "In simple terms, Agentropic is a toolkit for building smart programs that work together as a team. Each 'agent' is like a little worker that can think, talk to other workers, and do its job independently. You define what each agent does, and the framework handles the rest — running them, delivering messages, restarting them if they crash.",
+      "certainty": 1.0
+    },
+    {
+      "key": "examples",
+      "value": "With Agentropic you could build: a trading system where agents analyze markets and execute trades, a fleet of autonomous drones coordinating via swarm intelligence, a customer support system where specialist agents handle different topics, a DevOps pipeline where agents monitor services and auto-heal failures, or a multi-agent simulation for research.",
+      "certainty": 1.0
+    },
+    {
+      "key": "why_rust",
+      "value": "Rust gives Agentropic zero-cost async with tokio, memory safety without a garbage collector, fearless concurrency across agents, and the type system catches bugs at compile time. Agents run as lightweight tasks using minimal memory — thousands can run on a single machine.",
+      "certainty": 1.0
+    },
+    {
+      "key": "how_it_works",
+      "value": "You implement the Agent trait with initialize(), execute(), and shutdown(). The Runtime spawns your agent as an async task, calls initialize once, then loops execute continuously. Agents talk through a Router by name. If an agent crashes, the Supervisor restarts it based on its restart policy.",
+      "certainty": 1.0
+    },
+    {
+      "key": "comparison",
+      "value": "Unlike Python agent frameworks (CrewAI, AutoGen, LangGraph), Agentropic is built in Rust for raw performance and memory safety. It provides a real runtime with supervised agent lifecycles, not just LLM prompt chains. It's closer to Erlang/OTP's actor model but for AI agents.",
+      "certainty": 1.0
+    },
+    {
+      "key": "greeting",
+      "value": "Hello! I'm the Agentropic CognitiveAgent. Ask me anything about the framework",
+      "certainty": 1.0
+    },
+    {
+      "key": "owner",
+      "value": "Agentropic was created by Daniel, a full stack developer from Nigeria. The project is open source on GitHub at github.com/agentropic.",
+      "certainty": 1.0
+    },
+    {
+      "key": "github",
+      "value": "Agentropic's code is on GitHub at github.com/agentropic. All repos are open source under MIT and Apache-2.0 dual license.",
+      "certainty": 1.0
+    },
+    {
+      "key": "llm:owner",
+      "value": "Agentropic is designed for internal agent communication and coordination within its own multi-agent systems using Rust's memory safety guarantees, aiming at scalability and high performance. It does not facilitate direct interactions with external APIs but can interact through the Agent trait implemented by agents such as xbot.",
+      "certainty": 0.8
+    },
+    {
+      "key": "llm:who_is_the_owner?",
+      "value": "Agentropic Framework owns itself; it does not have an individual proprietor but was created by a community of contributors to advance multi-agent systems research and development within Rust's high performance environment.",
+      "certainty": 0.8
     }
   ]
 }

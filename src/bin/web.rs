@@ -194,18 +194,37 @@ fn add_rules(agent: &mut CognitiveAgent) {
         .with_condition("future").with_condition("plan")
         .with_conclusion("vision"));
 
+    // -- Robotics --
+    agent.add_rule(Rule::new("topic:robotics")
+        .with_condition("robot").with_condition("robotics").with_condition("drone")
+        .with_condition("autonomous").with_condition("iot")
+        .with_conclusion("robotics"));
+
+    // -- Agent vs Microservice --
+    agent.add_rule(Rule::new("topic:agent_vs_microservice")
+        .with_condition("microservice").with_condition("difference")
+        .with_condition("versus").with_condition("actor")
+        .with_conclusion("agent_vs_microservice"));
+
+    // -- External APIs --
+    agent.add_rule(Rule::new("topic:external_apis")
+        .with_condition("api").with_condition("external").with_condition("integrate")
+        .with_condition("http").with_condition("rest")
+        .with_conclusion("external_apis"));
+
     // -- Owner / creator --
-    agent.add_rule(Rule::new("topic:owner")
-        .with_condition("owner").with_condition("creator").with_condition("who")
-        .with_condition("made").with_condition("built").with_condition("created")
-        .with_condition("founder").with_condition("author")
-        .with_conclusion("owner"));
+    agent.add_rule(Rule::new("owner:owner").with_condition("owner").with_conclusion("owner"));
+    agent.add_rule(Rule::new("owner:creator").with_condition("creator").with_conclusion("owner"));
+    agent.add_rule(Rule::new("owner:founder").with_condition("founder").with_conclusion("owner"));
+    agent.add_rule(Rule::new("owner:who_made").with_condition("who").with_condition("made").with_conclusion("owner"));
+    agent.add_rule(Rule::new("owner:who_built").with_condition("who").with_condition("built").with_conclusion("owner"));
+    agent.add_rule(Rule::new("owner:who_created").with_condition("who").with_condition("created").with_conclusion("owner"));
 
     // -- GitHub --
-    agent.add_rule(Rule::new("topic:github")
-        .with_condition("github").with_condition("repo").with_condition("repository")
-        .with_condition("code").with_condition("source")
-        .with_conclusion("github"));
+    agent.add_rule(Rule::new("github:github").with_condition("github").with_conclusion("github"));
+    agent.add_rule(Rule::new("github:repo").with_condition("repo").with_conclusion("github"));
+    agent.add_rule(Rule::new("github:repository").with_condition("repository").with_conclusion("github"));
+        
     // -- Open source / license --
     agent.add_rule(Rule::new("topic:open_source")
         .with_condition("open").with_condition("source").with_condition("license")
@@ -229,8 +248,8 @@ async fn main() {
         .route("/ask", post(ask_handler))
         .with_state(shared);
 
-    let addr = "0.0.0.0:3000";
-    println!("  Server running at http://localhost:3000");
+    let addr = "0.0.0.0:3001";
+    println!("  Server running at http://localhost:3001");
     println!("  Press Ctrl+C to stop\n");
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();

@@ -67,7 +67,7 @@
     },
     {
       "key": "holarchy",
-      "value": "Holarchy pattern creates nested autonomous units called holons. Each holon is both a whole and a part — self-contained yet part of a larger system.",
+      "value": "Holarchy pattern creates nested autonomous units called holons. Each holon is both a whole and a part \u2014 self-contained yet part of a larger system.",
       "certainty": 1.0
     },
     {
@@ -126,33 +126,8 @@
       "certainty": 1.0
     },
     {
-      "key": "llm:how_does_agentropic_compare_to_other_agent_framewo",
-      "value": "Agentropic stands out due to its focus on scalability and high performance, achieved through the use of Rust's memory safety guarantees. Compared to other agent frameworks, it offers efficient communication between agents and supports large-scale simulations with complex environments. However, it may have a steeper learning curve due to its use of Rust.",
-      "certainty": 0.8
-    },
-    {
-      "key": "llm:can_i_use_agentropic_for_robotics?",
-      "value": "Yes, Agentropic can be used for robotics applications as it allows for the development of intelligent agents that can interact with each other and their environment, which is applicable to robotic systems. However, you may need additional libraries or integrations to handle specific robotics-related tasks such as sensor data processing or motor control.",
-      "certainty": 0.8
-    },
-    {
-      "key": "llm:what_is_the_difference_between_an_agent_and_a_micr",
-      "value": "An agent in Agentropic refers to an autonomous entity capable of perceiving its environment and acting upon it to achieve goals, while a microservice is a loosely coupled service within an application that performs a specific function. Though both are independent entities, they differ in their purpose, design, and context – agents operate within the framework for AI and multi-agent systems, while microservices are part of larger software applications.",
-      "certainty": 0.8
-    },
-    {
-      "key": "llm:can_agentropic_agents_collaborate_with_external_ap",
-      "value": "Agentropic itself does not directly facilitate interactions with external APIs, as it is designed for agent communication and coordination within the framework's own multi-agent systems using FIPA performatives. For integrating with external services or APIs, additional libraries or middleware would be required to handle such tasks.",
-      "certainty": 0.8
-    },
-    {
-      "key": "llm:can_i_build_an_agent_with_agentropic_?",
-      "value": "Yes, you can create agents using Agentropic by implementing the `Agent` trait and spawning them within its runtime system. Ensure to handle initialization, execution, and shutdown properly for a functional agent in Agentropic's environment.",
-      "certainty": 0.8
-    },
-    {
       "key": "layman",
-      "value": "In simple terms, Agentropic is a toolkit for building smart programs that work together as a team. Each 'agent' is like a little worker that can think, talk to other workers, and do its job independently. You define what each agent does, and the framework handles the rest — running them, delivering messages, restarting them if they crash.",
+      "value": "In simple terms, Agentropic is a toolkit for building smart programs that work together as a team. Each 'agent' is like a little worker that can think, talk to other workers, and do its job independently. You define what each agent does, and the framework handles the rest \u2014 running them, delivering messages, restarting them if they crash.",
       "certainty": 1.0
     },
     {
@@ -162,7 +137,7 @@
     },
     {
       "key": "why_rust",
-      "value": "Rust gives Agentropic zero-cost async with tokio, memory safety without a garbage collector, fearless concurrency across agents, and the type system catches bugs at compile time. Agents run as lightweight tasks using minimal memory — thousands can run on a single machine.",
+      "value": "Rust gives Agentropic zero-cost async with tokio, memory safety without a garbage collector, fearless concurrency across agents, and the type system catches bugs at compile time. Agents run as lightweight tasks using minimal memory \u2014 thousands can run on a single machine.",
       "certainty": 1.0
     },
     {
@@ -182,23 +157,28 @@
     },
     {
       "key": "owner",
-      "value": "Agentropic was created by Daniel, a full stack developer from Nigeria. The project is open source on GitHub at github.com/agentropic.",
+      "value": "Agentropic was created by Daniel, a full stack developer from Nigeria. Read more about him - https://www.github.com/agentropic",
       "certainty": 1.0
     },
     {
       "key": "github",
-      "value": "Agentropic's code is on GitHub at github.com/agentropic. All repos are open source under MIT and Apache-2.0 dual license.",
+      "value": "Agentropic's GitHub is at https://github.com/agentropic. All repos are open source under MIT and Apache-2.0 dual license.",
       "certainty": 1.0
     },
     {
-      "key": "llm:owner",
-      "value": "Agentropic is designed for internal agent communication and coordination within its own multi-agent systems using Rust's memory safety guarantees, aiming at scalability and high performance. It does not facilitate direct interactions with external APIs but can interact through the Agent trait implemented by agents such as xbot.",
-      "certainty": 0.8
+      "key": "robotics",
+      "value": "Yes, Agentropic can be used for robotics. Agents can coordinate autonomous robots via swarm or hierarchy patterns. You would need additional libraries for sensor data and motor control, but the framework handles agent coordination and communication.",
+      "certainty": 1.0
     },
     {
-      "key": "llm:who_is_the_owner?",
-      "value": "Agentropic Framework owns itself; it does not have an individual proprietor but was created by a community of contributors to advance multi-agent systems research and development within Rust's high performance environment.",
-      "certainty": 0.8
+      "key": "agent_vs_microservice",
+      "value": "An agent is an autonomous entity that perceives its environment and acts to achieve goals. A microservice is a software component that performs a specific function. Agents have beliefs, reasoning, and initiative. Microservices just respond to requests. Agentropic agents are closer to actors in Erlang than to REST services.",
+      "certainty": 1.0
+    },
+    {
+      "key": "external_apis",
+      "value": "Agentropic agents can integrate with external APIs using standard Rust HTTP libraries like reqwest inside their execute() or handle_message() methods. The framework handles agent coordination, you handle the API calls within your agent logic.",
+      "certainty": 1.0
     }
   ]
 }
